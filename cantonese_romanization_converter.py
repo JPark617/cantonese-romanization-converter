@@ -14,22 +14,52 @@ def remove_punctuation(text):
 from enum import Enum
 
 class System(Enum):
-    JYUTPING = 1
-    YALE = 2
+    ILE = 1
+    JYUTPING = 2
+    YALE = 3
 
 
-### JYUTPING
+### SYSTEM: ILE
 
-jyutping_initials = [
+ile_initials = (
+    '',
+    'b', 'p', 'm', 'f',
+    'd', 't', 'n', 'l',
+    'g', 'k', 'ng', 'h',
+    'gw', 'kw', 'w',
+    'dz', 'ts', 's', 'j',
+)
+
+ile_finals = (
+    '',
+    'aa', 'aai', 'aau', 'aam', 'aan', 'aang', 'aap', 'aat', 'aak',
+    'a', 'ai', 'au', 'am', 'an', 'ang', 'ap', 'at', 'ak',
+    'o', 'oi', 'ou', 'on', 'ong', 'ot', 'ok',
+    'oe', 'oeng', 'oet', 'oek',
+    'oey', 'oen', 'oet',
+    'e', 'ei', 'eu', 'em', 'eng', 'ep', 'ek',
+    'u', 'ui', 'un', 'ung', 'ut', 'uk',
+    'y', 'yn', 'yt',
+    'i', 'iu', 'im', 'in', 'ing', 'ip', 'it', 'ik',
+)
+
+ile_stop_consonants = ('p', 't', 'k')
+
+ile_tones = (1, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+
+
+### SYSTEM: JYUTPING
+
+jyutping_initials = (
     '',
     'b', 'p', 'm', 'f',
     'd', 't', 'n', 'l',
     'g', 'k', 'ng', 'h',
     'gw', 'kw', 'w',
     'z', 'c', 's', 'j',
-]
+)
 
-jyutping_finals = [
+jyutping_finals = (
     '',
     'aa', 'aai', 'aau', 'aam', 'aan', 'aang', 'aap', 'aat', 'aak',
     'a', 'ai', 'au', 'am', 'an', 'ang', 'ap', 'at', 'ak',
@@ -40,23 +70,25 @@ jyutping_finals = [
     'u', 'ui', 'un', 'ung', 'ut', 'uk',
     'yu', 'yun', 'yut',
     'i', 'iu', 'im', 'in', 'ing', 'ip', 'it', 'ik',
-]
+)
 
-jyutping_tones = [1, 1, 2, 3, 4, 5, 6]
+jyutping_stop_consonants = ('p', 't', 'k')
+
+jyutping_tones = (1, 1, 2, 3, 4, 5, 6, 1, 3, 6)
 
 
-### YALE
+### SYSTEM: YALE
 
-yale_initials = [
+yale_initials = (
     '',
     'b', 'p', 'm', 'f',
     'd', 't', 'n', 'l',
     'g', 'k', 'ng', 'h',
     'gw', 'kw', 'w',
     'j', 'ch', 's', 'y',
-]
+)
 
-yale_finals = [
+yale_finals = (
     '',
     'a', 'aai', 'aau', 'aam', 'aan', 'aang', 'aap', 'aat', 'aak',
     'a', 'ai', 'au', 'am', 'an', 'ang', 'ap', 'at', 'ak',
@@ -67,11 +99,13 @@ yale_finals = [
     'u', 'ui', 'un', 'ung', 'ut', 'uk',
     'yu', 'yun', 'yut',
     'i', 'iu', 'im', 'in', 'ing', 'ip', 'it', 'ik',
-]
+)
 
-yale_ending_consonants = ['m', 'n', 'ng', 'p', 't', 'k']
+yale_ending_consonants = ('m', 'n', 'ng', 'p', 't', 'k')
 
-yale_tones = ['¯ ', '` ', '´ ', '  ', '`h', '´h', ' h']
+yale_stop_consonants = ('p', 't', 'k')
+
+yale_tones = ('¯ ', '` ', '´ ', '  ', '`h', '´h', ' h', '¯ ', '  ', ' h')
 
 yale_tones_on_letters = {
     'a': ('ā', 'à', 'á', 'a'),
@@ -99,16 +133,55 @@ def deconstruct_yale_vowel(vowel_with_tone, is_low_tone):
 
 ### ENCODING
 
+def encode_ile(syllables):
+    encoded = []
+    initials_sorted = sorted(ile_initials, key=len, reverse=True)
+    for syllable in syllables:
+        initial = next((x for x in initials_sorted if syllable.startswith(x)), None)
+        try:
+            final = syllable[len(initial):-1]
+            tone = int(syllable[-1])
+            if final[-1] in ile_stop_consonants:
+                match tone:
+                    case 1: tone_index = 7
+                    case 3: tone_index = 8
+                    case 6: tone_index = 9
+                    case _: tone_index = ile_tones.index(tone)
+            else:
+                tone_index = ile_tones.index(tone)
+            indices = (
+                ile_initials.index(initial),
+                ile_finals.index(final),
+                tone_index
+            )
+            if indices[0] == 0 and indices[1] == 0:
+                encoded.append(syllable)
+            else:
+                encoded.append(indices)
+        except (IndexError, ValueError) as e:
+            encoded.append(syllable)
+    return encoded
+
 def encode_jyutping(syllables):
     encoded = []
     initials_sorted = sorted(jyutping_initials, key=len, reverse=True)
     for syllable in syllables:
         initial = next((x for x in initials_sorted if syllable.startswith(x)), None)
         try:
+            final = syllable[len(initial):-1]
+            tone = int(syllable[-1])
+            if final[-1] in jyutping_stop_consonants:
+                match tone:
+                    case 1: tone_index = 7
+                    case 3: tone_index = 8
+                    case 6: tone_index = 9
+                    case _: tone_index = jyutping_tones.index(tone)
+            else:
+                tone_index = jyutping_tones.index(tone)
             indices = (
                 jyutping_initials.index(initial),
-                jyutping_finals.index(syllable[len(initial):-1]),
-                jyutping_tones.index(int(syllable[-1])),
+                jyutping_finals.index(final),
+                tone_index
             )
             if indices[0] == 0 and indices[1] == 0:
                 encoded.append(syllable)
@@ -126,33 +199,48 @@ def encode_yale(syllables):
             if syllable == "m" or syllable == "mh": # "m" all tones
                 initial = 'm'
                 final = ''
-                tone = '`h'
+                tone_index = yale_tones.index('`h')
             else:
                 match list(syllable):
                     case [('n̄' | 'ǹ' | 'ń' | 'n') as n_with_tone, 'g']: # "ng" high tones
                         initial = 'ng'
                         final = ''
-                        _, tone = deconstruct_yale_vowel(n_with_tone, False)
+                        tone_index = yale_tones.index(deconstruct_yale_vowel(n_with_tone, False)[1])
                     case [('n' | 'ǹ' | 'ń') as n_with_tone, 'g', 'h']: # "ng" low tones
                         initial = 'ng'
                         final = ''
-                        _, tone = deconstruct_yale_vowel(n_with_tone, True)
+                        tone_index = yale_tones.index(deconstruct_yale_vowel(n_with_tone, True)[1])
                     case _:
                         initial = next((x for x in initials_sorted if syllable.startswith(x)), None)
                         final_end = next((x for x in yale_ending_consonants if syllable.endswith(x)), '')
                         final_vowels_with_tone = syllable[len(initial):-len(final_end)] if len(final_end) > 0 else syllable[len(initial):]
-                        if final_vowels_with_tone[-1] == 'h':
+                        if final_vowels_with_tone[-1] == 'h': # low tones
                             is_low_tone = True
                             final_vowels = final_vowels_with_tone[:-1]
-                        else:
+                        else: # high tones
                             is_low_tone = False
                             final_vowels = final_vowels_with_tone
+                        if final_vowels[0] == 'y': # 'yu' vowel with an initial consonant
+                            final_start = 'y'
+                            final_vowels = final_vowels[1:]
+                        elif initial == 'y' and final_vowels in yale_tones_on_letters['u']: # 'yu' vowel without an initial consonant
+                            final_start = 'y'
+                        else:
+                            final_start = ''
                         vowel, tone = deconstruct_yale_vowel(final_vowels[0], is_low_tone)
-                        final = vowel + final_vowels[1:] + final_end
+                        final = final_start + vowel + final_vowels[1:] + final_end
+                        if final_end in yale_stop_consonants:
+                            match tone:
+                                case '¯ ': tone_index = 7
+                                case '  ': tone_index = 8
+                                case ' h': tone_index = 9
+                                case _: tone_index = yale_tones.index(tone)
+                        else:
+                            tone_index = yale_tones.index(tone)
             indices = (
                 yale_initials.index(initial),
                 yale_finals.index(final),
-                yale_tones.index(tone),
+                tone_index,
             )
             if indices[0] == 0 and indices[1] == 0:
                 encoded.append(syllable)
@@ -166,14 +254,28 @@ def encode_yale(syllables):
 def encode(text, origin_system):
     assert origin_system in System
     syllables = text.lower().split(' ')
-    if origin_system == System.JYUTPING:
-        encoded = encode_jyutping(syllables)
-    elif origin_system == System.YALE:
-        encoded = encode_yale(syllables)
+    match origin_system:
+        case System.ILE: encoded = encode_ile(syllables)
+        case System.JYUTPING: encoded = encode_jyutping(syllables)
+        case System.YALE: encoded = encode_yale(syllables)
+        case _: encoded = text
     return encoded
 
 
 ### DECODING
+
+def decode_ile(syllables):
+    decoded = []
+    for syllable in syllables:
+        if type(syllable) == tuple:
+            decoded.append('{}{}{}'.format(
+                ile_initials[syllable[0]],
+                ile_finals[syllable[1]],
+                ile_tones[syllable[2]]
+            ))
+        else:
+            decoded.append(str(syllable))
+    return decoded
 
 def decode_jyutping(syllables):
     decoded = []
@@ -217,10 +319,11 @@ def decode_yale(syllables):
 
 def decode(syllables, target_system):
     assert target_system in System
-    if target_system == System.JYUTPING:
-        decoded = decode_jyutping(syllables)
-    elif target_system == System.YALE:
-        decoded = decode_yale(syllables)
+    match target_system:
+        case System.ILE: decoded = decode_ile(syllables)
+        case System.JYUTPING: decoded = decode_jyutping(syllables)
+        case System.YALE: decoded = decode_yale(syllables)
+        case _: decoded = syllables
     return ' '.join(decoded)
 
 
