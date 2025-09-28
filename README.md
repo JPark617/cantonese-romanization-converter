@@ -29,7 +29,7 @@ Simply run the `cantonese_romanization_converter.py` file using Python! The prog
 
 Note that each Cantonese syllable must be separated by a space, since otherwise the program will not recognize it as Cantonese. The program will automatically turn the input text entirely lowercase and remove all punctuation before attempting to convert. Any non-Cantonese or otherwise unrecognized text will not be altered further.
 
-This program currently supports conversion between the Jyutping and Yale systems.
+This program currently supports conversion between the ILE (Cantonese Pinyin), Jyutping, and Yale systems.
 
 
 ## Compatibility
