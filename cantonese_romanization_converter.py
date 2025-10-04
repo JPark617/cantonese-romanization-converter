@@ -114,7 +114,7 @@ yale_tones_on_letters = {
     'u': ('ū', 'ù', 'ú', 'u'),
     'i': ('ī', 'ì', 'í', 'i'),
     'm': ('m̄', 'm', 'ḿ', 'm'),
-    'n': ('n̄', 'ǹ', 'ń', 'n'),
+    'ng': ('n̄g', 'ǹg', 'ńg', 'ng'),
 }
 
 def deconstruct_yale_vowel(vowel_with_tone, is_low_tone):
@@ -170,7 +170,7 @@ def encode_jyutping(syllables):
         try:
             final = syllable[len(initial):-1]
             tone = int(syllable[-1])
-            if final[-1] in jyutping_stop_consonants:
+            if len(final) > 0 and final[-1] in jyutping_stop_consonants:
                 match tone:
                     case 1: tone_index = 7
                     case 3: tone_index = 8
@@ -196,20 +196,19 @@ def encode_yale(syllables):
     initials_sorted = sorted(yale_initials, key=len, reverse=True)
     for syllable in syllables:
         try:
+            tone_index = -1
             if syllable == "m" or syllable == "mh": # "m" all tones
                 initial = 'm'
                 final = ''
-                tone_index = yale_tones.index('`h')
+                tone = '`h'
             else:
-                match list(syllable):
-                    case [('n̄' | 'ǹ' | 'ń' | 'n') as n_with_tone, 'g']: # "ng" high tones
-                        initial = 'ng'
+                match syllable:
+                    case 'n̄g' | 'ǹg' | 'ńg' | 'ng': # "ng" high tones
+                        initial, tone = deconstruct_yale_vowel(syllable, False)
                         final = ''
-                        tone_index = yale_tones.index(deconstruct_yale_vowel(n_with_tone, False)[1])
-                    case [('n' | 'ǹ' | 'ń') as n_with_tone, 'g', 'h']: # "ng" low tones
-                        initial = 'ng'
+                    case 'ngh' | 'ǹgh' | 'ńgh': # "ng" low tones
+                        initial, tone = deconstruct_yale_vowel(syllable[0:2], True)
                         final = ''
-                        tone_index = yale_tones.index(deconstruct_yale_vowel(n_with_tone, True)[1])
                     case _:
                         initial = next((x for x in initials_sorted if syllable.startswith(x)), None)
                         final_end = next((x for x in yale_ending_consonants if syllable.endswith(x)), '')
@@ -234,9 +233,8 @@ def encode_yale(syllables):
                                 case '¯ ': tone_index = 7
                                 case '  ': tone_index = 8
                                 case ' h': tone_index = 9
-                                case _: tone_index = yale_tones.index(tone)
-                        else:
-                            tone_index = yale_tones.index(tone)
+            if tone_index == -1:
+                tone_index = yale_tones.index(tone)
             indices = (
                 yale_initials.index(initial),
                 yale_finals.index(final),
@@ -297,20 +295,24 @@ def decode_yale(syllables):
             initial = yale_initials[syllable[0]]
             final = yale_finals[syllable[1]]
             tone = yale_tones[syllable[2]]
-            final_end = next((x for x in yale_ending_consonants if final.endswith(x)), '')
-            final_vowels = final[0:-len(final_end)] if len(final_end) > 0 else final
-            if len(final_vowels) == 0: # check for syllabic 'm' and 'ng'
-                final_vowels = initial[-1]
-                initial = initial[:-1]
-            if final_vowels[0] == 'y': # check for finals that start with 'y'
-                final_start = '' if initial == 'y' else 'y'
-                final_vowels = final_vowels[1:]
+            final_start = ''
+            if len(final) == 0: # check for syllabic 'm' and 'ng'
+                final_end = ''
+                final_vowel_tail = ''
+                final_vowel_head = initial
+                initial = ''
             else:
-                final_start = ''
+                if final[0] == 'y': # check for finals that start with 'y'
+                    if initial != 'y': final_start = 'y'
+                    final = final[1:]
+                final_end = next((x for x in yale_ending_consonants if final.endswith(x)), '')
+                final_vowel_tail = final[1:-len(final_end)] if len(final_end) > 0 else ''
+                final_vowel_head = final[0]
             match tone[0]:
-                case '¯': final_vowels = yale_tones_on_letters[final_vowels[0]][0] + final_vowels[1:]
-                case '`': final_vowels = yale_tones_on_letters[final_vowels[0]][1] + final_vowels[1:]
-                case '´': final_vowels = yale_tones_on_letters[final_vowels[0]][2] + final_vowels[1:]
+                case '¯': final_vowels = yale_tones_on_letters[final_vowel_head][0] + final_vowel_tail
+                case '`': final_vowels = yale_tones_on_letters[final_vowel_head][1] + final_vowel_tail
+                case '´': final_vowels = yale_tones_on_letters[final_vowel_head][2] + final_vowel_tail
+                case _: final_vowels = final_vowel_head + final_vowel_tail
             final_highlow = tone[1].strip()
             decoded.append('{}{}{}{}{}'.format(initial, final_start, final_vowels, final_highlow, final_end))
         else:
