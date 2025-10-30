@@ -306,7 +306,7 @@ def decode_yale(syllables):
                     if initial != 'y': final_start = 'y'
                     final = final[1:]
                 final_end = next((x for x in yale_ending_consonants if final.endswith(x)), '')
-                final_vowel_tail = final[1:-len(final_end)] if len(final_end) > 0 else ''
+                final_vowel_tail = final[1:-len(final_end)] if len(final_end) > 0 else final[1:]
                 final_vowel_head = final[0]
             match tone[0]:
                 case '¯': final_vowels = yale_tones_on_letters[final_vowel_head][0] + final_vowel_tail
